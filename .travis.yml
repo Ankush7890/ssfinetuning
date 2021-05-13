@@ -1,0 +1,11 @@
+language: python
+python:
+  - "3.6"
+
+# command to install
+install:
+  - "pip install ."
+  - "pip install -U tox-travis"
+
+# command to run tests
+script: python setup.py test
