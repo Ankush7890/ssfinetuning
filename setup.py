@@ -9,11 +9,11 @@ setup(
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     keywords="NLP transformers huggingface deep learning pytorch",
-    #url="https://github.com/huggingface/transformers",
+    url="https://github.com/Ankush7890/ssfinetuning",
     package_dir={"": "src"},
     packages=find_packages("src"),
     python_requires=">=3.6.0",
-    install_requires=['torch>=1.7','transformers==4.2.2', 'datasets==1.5'],
+    install_requires=['torch>=1.7','transformers==4.2.2', 'datasets==1.5', 'matplotlib==3.1.3'],
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Education",

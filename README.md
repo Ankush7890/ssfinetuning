@@ -20,6 +20,15 @@ The trainers for SSL models are deriven from `transformers.Trainer`.
 
 1. **[NoisyStudent](https://arxiv.org/abs/1911.04252)** as introduced in the paper *Self-training with Noisy Student improves ImageNet classification* by Qizhe Xie, Minh-Thang Luong, Eduard Hovy, and Quoc V. Le.
 
+# Installation
+
+```python
+>>> pip install ssfinetuning 
+```
+# Documentation
+
+[https://ssfinetuning.readthedocs.io/en/latest](https://ssfinetuning.readthedocs.io/en/latest)
+
 # Getting started.
 
 1. Important points to consider before using any of the models:
