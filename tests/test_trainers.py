@@ -69,18 +69,18 @@ class TestTrainerWithUWScheduler(unittest.TestCase):
         with self.assertRaises(AssertionError):
             trainer_pi_1.train()
         
-        trainer_pi_2 = TrainerWithUWScheduler(model = PiModel(), args=args_ta, tokenizer=tokenizer_pi,  dataset = encoded_pi)
+        #trainer_pi_2 = TrainerWithUWScheduler(model = PiModel(), args=args_ta, tokenizer=tokenizer_pi,  dataset = encoded_pi)
         
-        trainer_pi_2.train()
+        #trainer_pi_2.train()
 
         trainer_te_1 = TrainerWithUWScheduler(model = TemporalEnsembleModel(), args=args_ta, tokenizer=tokenizer_pi ,dataset = correct_ds_for_pi_te_mean)
         
         with self.assertRaises(AssertionError):
             trainer_te_1.train()
 
-        trainer_te_2 = TrainerWithUWScheduler(model = TemporalEnsembleModel(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
+        #trainer_te_2 = TrainerWithUWScheduler(model = TemporalEnsembleModel(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
         
-        trainer_te_2.train()
+        #trainer_te_2.train()
 
   
         trainer_me_1 = TrainerWithUWScheduler(model = MeanTeacher(), args=args_ta, tokenizer=tokenizer_pi ,dataset = correct_ds_for_pi_te_mean)
@@ -88,9 +88,9 @@ class TestTrainerWithUWScheduler(unittest.TestCase):
         with self.assertRaises(AssertionError):
             trainer_me_1.train()
 
-        trainer_me_2 = TrainerWithUWScheduler(model = MeanTeacher(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
+        #trainer_me_2 = TrainerWithUWScheduler(model = MeanTeacher(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
         
-        trainer_me_2.train()
+        #trainer_me_2.train()
 
 unlabeled_co = Dataset.from_dict({'sentence':['moon what??.', 'I am people']})
 
