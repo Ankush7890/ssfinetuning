@@ -142,7 +142,7 @@ def get_default_legend_pos(num_graphs, axes_index=None):
     
     return kwargs
 
-def plot_in(axes, axes_index = 0, data=None,  data_to_compare=None, x_axis_col='epoch', 
+def plot_in(axes, axes_index = 0, totplots=1, data=None,  data_to_compare=None, x_axis_col='epoch', 
             y_axis_col="eval_mc", select_best=5, criteria='max', cols_to_find=["w_ramprate"], 
             dis_col='l_fr', dis_val=False, data_to_compare_lb='sup_stats'):
     """
@@ -154,6 +154,8 @@ def plot_in(axes, axes_index = 0, data=None,  data_to_compare=None, x_axis_col='
     
     axes_index (:obj:`int`, `optional`, defaults to None ): In the case 
     of multiple, setting changed depending on index of axes.
+    
+    totplots (obj: int): Total number of plots to be plotted.
     
     data (:obj:`pd.DataFrame` ): Data to sort from.
     
@@ -204,7 +206,13 @@ def plot_in(axes, axes_index = 0, data=None,  data_to_compare=None, x_axis_col='
             axes.plot(data_to_compare[x_axis_col], data_to_compare[y_axis_col], label = data_to_compare_lb, linestyle='--')
     
     
-    axes.set_xlabel(x_axis_col)
+    if totplots==3 and axes_index>=1:
+        axes.set_xlabel(x_axis_col)
+    elif totplots==4 and axes_index>=2:
+        axes.set_xlabel(x_axis_col)
+    elif totplots<=2:
+        axes.set_xlabel(x_axis_col)
+        
     if dis_val: axes.set_title(dis_col+'='+str(dis_val))
     if axes_index%2==0: axes.set_ylabel(y_axis_col)
 
@@ -226,17 +234,19 @@ def plot_with_discriminator(dis_col, save_png, data=None, *args, **kwargs):
     kwargs: remaining dictionary of keyword arguments from the plot_in function.
 
     """
+    totplots = len(data[dis_col].unique())
     
-    fig, axes, axes_unrolled = set_default_vals(len(data[dis_col].unique()))
-        
+    fig, axes, axes_unrolled = set_default_vals(totplots)    
+    
     for dis_index, dis_val in enumerate(data[dis_col].unique()):
         
         data_dis = data[data[dis_col]==dis_val]
                 
-        plot_in(axes_unrolled[dis_index], axes_index=dis_index, data=data_dis, dis_val = dis_val, *args, **kwargs)
+        plot_in(axes_unrolled[dis_index], axes_index=dis_index, totplots=totplots, 
+                data=data_dis, dis_val = dis_val, *args, **kwargs)
                 
         axes_unrolled[dis_index].legend(**get_default_legend_pos(len(data[dis_col].unique()), dis_index))
-        
+                
     if save_png :plt.savefig(save_png, bbox_inches='tight')
 
 
