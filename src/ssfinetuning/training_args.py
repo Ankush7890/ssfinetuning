@@ -7,7 +7,7 @@ import gc
 from collections import OrderedDict
 import itertools
 import inspect
-from .default_args import get_default_ta_sup, get_default_ta, set_default_args
+from .default_args import DefaultArgs
 from functools import wraps
 
 from .trainer_util import (
@@ -141,18 +141,23 @@ def with_labeled_fraction(basefunction, labeled_fraction, *args, **kwargs):
 
     sup_stats = []
     stats = []
-    kwargs_defs = extract_keys(set_default_args, kwargs)
+    da_obj = DefaultArgs()
+    kwargs_defs = extract_keys(da_obj.set_default_args, kwargs)
 
     dataset, args = check_and_replace(
         'dataset', kwargs_defs, args, basefunction)
+
     model_name, args = check_and_replace(
         'model_name', kwargs_defs, args, basefunction)
+
     ssl_model_type, args = check_and_replace(
         'ssl_model_type', kwargs, args, basefunction)
 
-    dataset, kwargs_ta = set_default_args(dataset, model_name, kwargs)
+    dataset, kwargs_ta = da_obj.set_default_args(dataset, model_name, kwargs)
 
     batch_size = kwargs_ta['per_device_train_batch_size']
+
+    kwargs['da_obj'] = da_obj
 
     for l_fr in labeled_fraction:
 
@@ -300,7 +305,12 @@ def train_with_ssl(dataset=None,
 
         sup_stats = []
         stats = []
-        dataset, _ = set_default_args(dataset, model_name, kwargs)
+        da_obj = DefaultArgs()
+        dataset, _ = da_obj.set_default_args(dataset, model_name, kwargs)
+
+    else:
+
+        da_obj = kwargs.pop('da_obj')
 
     if use_sup:
         run_sup = True
@@ -312,7 +322,7 @@ def train_with_ssl(dataset=None,
     args_ta_sup_in_keys = kwargs.pop('args_ta_sup', None)
     args_ta_in_keys = kwargs.pop('args_ta', None)
 
-    args_ta_sup = get_default_ta_sup(f'runs/l_fr_{l_fr}')\
+    args_ta_sup = da_obj.get_default_ta_sup(f'runs/l_fr_{l_fr}')\
         if args_ta_in_keys is None else args_ta_sup_in_keys.copy()
 
     output_dir_sup = args_ta_sup.output_dir
@@ -321,6 +331,7 @@ def train_with_ssl(dataset=None,
 
         model_sup = AutoModelForSequenceClassification.from_pretrained(
             model_name, num_labels=num_labels)
+
         trainer_sup = Trainer(
             model_sup,
             args_ta_sup,
@@ -367,7 +378,7 @@ def train_with_ssl(dataset=None,
         else:
             model_ssl = SSLModel(model_name=model_name, **kwargs_model)
 
-        args_ta = get_default_ta(logging_dir)\
+        args_ta = da_obj.get_default_ta(logging_dir)\
             if args_ta_in_keys is None else args_ta_in_keys.copy()
 
         output_dir = args_ta.output_dir

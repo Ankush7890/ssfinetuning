@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 src/ssfinetuning/__pycache__/
 runs/
+test_file.py
 
 # C extensions
 *.so

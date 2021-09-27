@@ -78,12 +78,16 @@ def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
     """
 
     dataset_train = dataset[train_key].shuffle()
+
     num_rows = dataset_train.num_rows
 
     lab_lim = match_with_batchsize(int(labeled_fr * num_rows), batchsize)
+
     unlab_start = num_rows - \
         match_with_batchsize(num_rows - lab_lim, batchsize)
+
     dataset['labeled'] = dataset_train.select(np.arange(0, lab_lim))
+
     dataset['unlabeled'] = dataset_train.select(
         np.arange(unlab_start, num_rows))
 
