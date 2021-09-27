@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 src/ssfinetuning/__pycache__/
+runs/
 
 # C extensions
 *.so
