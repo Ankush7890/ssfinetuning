@@ -10,10 +10,11 @@ from unittest.mock import patch, Mock
 from torch.optim.lr_scheduler import MultiplicativeLR
 import torch
 
-from fixtures.tiny_training_datasets import (
+from .tiny_training_datasets import (
     get_correct_dataset_TUWS,
     get_wrong_dataset_TUWS,
     get_dataset_cotrain)
+
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -254,8 +255,7 @@ class TestTrainerCoTrain(unittest.TestCase):
                 args=self.args_ta,
                 dataset=self.dataset_wrong_key)
 
-    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining,
-                  'exchange_unlabeled_data')
+    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining,'exchange_unlabeled_data')
     @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining, 'cotrain')
     @patch('ssfinetuning.models.CoTrain', autospec=True)
     def test_for_train(self, mock_CT, mock_cotrain, mock_ex_unl):
