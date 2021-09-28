@@ -1,266 +1,381 @@
 import unittest
+import ssfinetuning.models
 from ssfinetuning.models import *
+import transformers.trainer
 from ssfinetuning.trainer_util import *
 from datasets import Dataset, DatasetDict
 from ssfinetuning.default_args import encode
 from transformers import TrainingArguments
 from unittest.mock import patch, Mock
+from torch.optim.lr_scheduler import MultiplicativeLR
+import torch
+
+from fixtures.tiny_training_datasets import (
+    get_correct_dataset_TUWS,
+    get_wrong_dataset_TUWS,
+    get_dataset_cotrain)
 import warnings
+
 warnings.filterwarnings('ignore')
 
-labeled = Dataset.from_dict(
-    {'sentence': ['moon can be red.', 'There are no people on moon.'], 'label': [1, 0]})
-unlabeled = Dataset.from_dict(
-    {'sentence': ['moon what??.', 'I am people'], 'label': [-1, -1]})
 
+def setup_default_config(dataset):
 
-wrong_unlabeled = Dataset.from_dict(
-    {'sentence': ['moon what??.', 'I am people'], 'label': [-1, 0]})
-train_correct = Dataset.from_dict(
-    {
-        'sentence': labeled['sentence'] + unlabeled['sentence'],
-        'label': labeled['label'] + unlabeled['label']})
-train_wrong = Dataset.from_dict(
-    {
-        'sentence': labeled['sentence'] + wrong_unlabeled['sentence'],
-        'label': labeled['label'] + wrong_unlabeled['label']})
+    args_ta = TrainingArguments(**{'output_dir': "glue",
+                                   'evaluation_strategy': 'no',
+                                   'learning_rate': 2e-5,
+                                   'per_device_train_batch_size': 2,
+                                   'num_train_epochs': 4,
+                                   'save_steps': 10,
+                                   'disable_tqdm': True,
+                                   'no_cuda': True})
 
-correct_ds_for_pi_te_mean = DatasetDict({
-    'train': train_correct,
-})
+    encoded, tokenizer = encode(dataset)
 
-wrong_key_ds_for_pi_te_mean = DatasetDict({
-    'training_Data': train_correct,
-})
-
-wrong_ds_for_pi_te_mean = DatasetDict({
-    'train': train_wrong,
-})
-
-args_ta = TrainingArguments(**{'output_dir': "glue",
-                               'evaluation_strategy': 'no',
-                               'learning_rate': 2e-5,
-                               'per_device_train_batch_size': 2,
-                               'num_train_epochs': 2,
-                               'save_steps': 10,
-                               'disable_tqdm': True,
-                               'no_cuda': True})
-encoded_pi, tokenizer_pi = encode(correct_ds_for_pi_te_mean)
+    return encoded, tokenizer, args_ta
 
 
 class TestTrainerWithUWScheduler(unittest.TestCase):
 
-    def test_for_constructor(self):
+    def setUp(self):
 
-        trainer_pi = TrainerWithUWScheduler(
-            model=PiModel(), dataset=correct_ds_for_pi_te_mean)
+        self.wrong_dataset = get_wrong_dataset_TUWS()
 
-        with self.assertRaises(KeyError):
-            TrainerWithUWScheduler(
-                model=PiModel(),
-                dataset=wrong_key_ds_for_pi_te_mean)
+        self.correct_dataset = get_correct_dataset_TUWS()
 
-        trainer_te = TrainerWithUWScheduler(
-            model=TemporalEnsembleModel(),
-            dataset=correct_ds_for_pi_te_mean)
+        self.correct_dataset_wrong_keys = get_correct_dataset_TUWS(
+            wrong_key=True)
 
-        with self.assertRaises(KeyError):
-            TrainerWithUWScheduler(
-                model=TemporalEnsembleModel(),
-                dataset=wrong_key_ds_for_pi_te_mean)
+        self.encoded_dataset, self.tokenizer, self.args_ta = setup_default_config(
+            self.correct_dataset)
 
-        trainer_me = TrainerWithUWScheduler(
-            model=MeanTeacher(), dataset=correct_ds_for_pi_te_mean)
+    def test_for_constructor_errors(self):
 
-        with self.assertRaises(KeyError):
-            TrainerWithUWScheduler(
-                model=MeanTeacher(),
-                dataset=wrong_key_ds_for_pi_te_mean)
-
+        mock_pi = Mock()
         with self.assertRaises(RuntimeError):
             TrainerWithUWScheduler(
-                model=PiModel(),
-                args=args_ta,
-                dataset=wrong_ds_for_pi_te_mean)
+                model=mock_pi,
+                args=self.args_ta,
+                dataset=self.wrong_dataset)
 
-    def test_for_train(self):
+        with self.assertRaises(KeyError):
+            TrainerWithUWScheduler(
+                model=mock_pi,
+                args=self.args_ta,
+                dataset=self.correct_dataset_wrong_keys)
 
-        trainer_pi_1 = TrainerWithUWScheduler(
-            model=PiModel(),
-            args=args_ta,
-            tokenizer=tokenizer_pi,
-            dataset=correct_ds_for_pi_te_mean)
+    @patch.object(ssfinetuning.trainer_util.Trainer, 'train')
+    @patch('ssfinetuning.models.PiModel', autospec=True)
+    def test_with_pi(self, mock_pi, mock_trainer):
 
-        with self.assertRaises(AssertionError):
-            trainer_pi_1.train()
+        mock_pi_obj = mock_pi.to()
+        mock_pi_obj.unsup_weight = 0
 
-        #trainer_pi_2 = TrainerWithUWScheduler(model = PiModel(), args=args_ta, tokenizer=tokenizer_pi,  dataset = encoded_pi)
+        trainer = TrainerWithUWScheduler(
+            model=mock_pi_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            unsup_start_epochs=1,
+            max_w=1,
+            w_ramprate=1,
+            update_weights_steps=1
+        )
 
-        # trainer_pi_2.train()
+        trainer.train()
 
-        trainer_te_1 = TrainerWithUWScheduler(
-            model=TemporalEnsembleModel(),
-            args=args_ta,
-            tokenizer=tokenizer_pi,
-            dataset=correct_ds_for_pi_te_mean)
+        mock_trainer.assert_called()
 
-        with self.assertRaises(AssertionError):
-            trainer_te_1.train()
+        # assuming 1 step per epoch
+        trainer.create_optimizer_and_scheduler(num_training_steps=4)
 
-        #trainer_te_2 = TrainerWithUWScheduler(model = TemporalEnsembleModel(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
+        trainer.state.epoch = 0
+        trainer.state.global_step = 0
 
-        # trainer_te_2.train()
+        self.assertTrue(isinstance(trainer.lr_scheduler, UWScheduler))
 
-        trainer_me_1 = TrainerWithUWScheduler(
-            model=MeanTeacher(),
-            args=args_ta,
-            tokenizer=tokenizer_pi,
-            dataset=correct_ds_for_pi_te_mean)
+        # calling the optimizer and lr scheduler
+        trainer.optimizer.step()
+        trainer.lr_scheduler.step()
 
-        with self.assertRaises(AssertionError):
-            trainer_me_1.train()
+        self.assertEqual(mock_pi_obj.unsup_weight, 0)
 
-        #trainer_me_2 = TrainerWithUWScheduler(model = MeanTeacher(), args=args_ta, tokenizer=tokenizer_pi, dataset = encoded_pi)
+        # step1=epoch1
+        trainer.state.epoch = 1
+        trainer.state.global_step = 1
 
-        # trainer_me_2.train()
+        trainer.lr_scheduler.step()
+
+        self.assertEqual(mock_pi_obj.unsup_weight, 0)
+
+        # step2=epoch2
+        trainer.state.epoch = 2
+        trainer.state.global_step = 2
+
+        trainer.lr_scheduler.step()
+
+        self.assertEqual(mock_pi_obj.unsup_weight, 1)
+
+        # step3=epoch3
+        trainer.state.epoch = 3
+        trainer.state.global_step = 3
+
+        trainer.lr_scheduler.step()
+        # no change expected since maximum weight(max_w) is 1
+        self.assertEqual(mock_pi_obj.unsup_weight, 1)
+
+    @patch('ssfinetuning.models.TemporalEnsembleModel', autospec=True)
+    def test_with_te(self, mock_te):
+
+        mock_te_obj = mock_te.to()
+        mock_te_obj.type_ = 'TemporalEnsembleModel'
+
+        trainer = TrainerWithUWScheduler(
+            model=mock_te_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            unsup_start_epochs=1,
+            max_w=1,
+            w_ramprate=1,
+            update_weights_steps=1
+        )
+
+        # assuming 2 step per epoch
+        trainer.create_optimizer_and_scheduler(num_training_steps=8)
+
+        trainer.state.epoch = 0
+        trainer.state.global_step = 0
+
+        self.assertTrue(isinstance(trainer.lr_scheduler, UWScheduler))
+
+        # calling the optimizer and lr scheduler
+        trainer.optimizer.step()
+        trainer.lr_scheduler.step()
+
+        self.assertFalse(mock_te_obj.update_memory_logits.called)
+
+        # step1=epoch0
+        trainer.state.epoch = 0
+        trainer.state.global_step = 1
+
+        trainer.lr_scheduler.step()
+
+        mock_te_obj.update_memory_logits.assert_called()
+
+        # step2=epoch1
+        trainer.state.epoch = 1
+        trainer.state.global_step = 2
+
+        trainer.lr_scheduler.step()
+        # only called after an epoch is completed
+        self.assertEqual(mock_te_obj.update_memory_logits.call_count, 1)
+
+        # step3=epoch1
+        trainer.state.epoch = 1
+        trainer.state.global_step = 3
+
+        trainer.lr_scheduler.step()
+
+        self.assertEqual(mock_te_obj.update_memory_logits.call_count, 2)
+
+    @patch('ssfinetuning.models.MeanTeacher', autospec=True)
+    def test_with_me(self, mock_me):
+
+        mock_me_obj = mock_me.to()
+        mock_me_obj.type_ = 'MeanTeacher'
+
+        trainer = TrainerWithUWScheduler(
+            model=mock_me_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            update_teacher_steps=1
+        )
+
+        # assuming 1 step per epoch
+        trainer.create_optimizer_and_scheduler(num_training_steps=1)
+
+        trainer.state.epoch = 0
+        trainer.state.global_step = 0
+
+        self.assertTrue(isinstance(trainer.lr_scheduler, UWScheduler))
+
+        # calling the optimizer and lr scheduler
+        trainer.optimizer.step()
+        trainer.lr_scheduler.step()
+
+        self.assertFalse(mock_me_obj.update_teacher_variables.called)
+
+        # step1=epoch1
+        trainer.state.epoch = 1
+        trainer.state.global_step = 1
+
+        trainer.lr_scheduler.step()
+
+        mock_me_obj.update_teacher_variables.assert_called()
+
+        # step2=epoch2
+        trainer.state.epoch = 2
+        trainer.state.global_step = 2
+
+        trainer.lr_scheduler.step()
+
+        self.assertEqual(mock_me_obj.update_teacher_variables.call_count, 2)
 
 
-unlabeled_co = Dataset.from_dict({'sentence': ['moon what??.', 'I am people']})
+class TestTrainerCoTrain(unittest.TestCase):
 
-correct_ds_for_co = DatasetDict({
-    'labeled1': labeled,
-    'labeled2': labeled,
-    'unlabeled': unlabeled_co
+    def setUp(self):
 
-})
+        self.dataset = get_dataset_cotrain()
 
-wrong_key_ds_for_co = DatasetDict({
-    'labels1': labeled,
-    'labels2': labeled,
-    'unlabels': unlabeled_co
-})
+        self.dataset_wrong_key = get_dataset_cotrain(wrong_key=True)
 
-encoded_co, tokenizer_co = encode(correct_ds_for_co)
+        self.encoded_dataset, self.tokenizer, self.args_ta = setup_default_config(
+            self.dataset)
 
-
-class TestTrainerForCoTraining(unittest.TestCase):
+        def dummy_forward(attention_mask, input_ids, label): pass
+        # signature is required for mock model objects.
+        self.sig = inspect.signature(dummy_forward)
 
     def test_for_constructor(self):
 
-        trainer_1 = TrainerForCoTraining(
-            model=CoTrain(), dataset=correct_ds_for_co)
-
-        with self.assertRaises(KeyError):
-            TrainerForCoTraining(model=CoTrain(), dataset=wrong_key_ds_for_co)
-
-    def test_for_train(self):
+        mock_co = Mock()
 
         trainer = TrainerForCoTraining(
-            model=CoTrain(),
-            args=args_ta,
-            tokenizer=tokenizer_co,
-            dataset=encoded_co)
+            model=mock_co,
+            args=self.args_ta,
+            dataset=self.dataset)
 
-        with patch.object(TrainerForCoTraining, 'cotrain', return_value=None) as mock_cotrain:
-            trainer.train()
+        with self.assertRaises(KeyError):
+            TrainerForCoTraining(
+                model=mock_co,
+                args=self.args_ta,
+                dataset=self.dataset_wrong_key)
+
+    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining,
+                  'exchange_unlabeled_data')
+    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining, 'cotrain')
+    @patch('ssfinetuning.models.CoTrain', autospec=True)
+    def test_for_train(self, mock_CT, mock_cotrain, mock_ex_unl):
+
+        # setting max_passes to 0 and
+        # use_min_lr_scheduler to True
+        trainer1 = TrainerForCoTraining(
+            model=mock_CT.to(),
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            use_min_lr_scheduler=True,
+            max_passes=0
+        )
+
+        trainer1.train()
 
         mock_cotrain.assert_called()
 
-        with patch.object(TrainerForCoTraining, 'exchange_unlabeled_data', return_value=bool) as mock_exchange_ud:
-            trainer.train()
+        self.assertTrue(isinstance(trainer1.lr_scheduler, MultiplicativeLR))
 
-        mock_exchange_ud.assert_called()
+        # setting max_passes to 1
+        # use_min_lr_scheduler to None
+        trainer2 = TrainerForCoTraining(
+            model=mock_CT.to(),
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            use_min_lr_scheduler=None,
+            max_passes=1
+        )
 
+        mock_ex_unl.return_value = False
 
-correct_ds_for_tri = DatasetDict({
-    'labeled1': labeled,
-    'labeled2': labeled,
-    'labeled3': labeled,
-    'unlabeled': unlabeled_co
+        trainer2.train()
 
-})
+        self.assertTrue(mock_cotrain.call_count, 3)
 
-wrong_key_ds_for_tri = DatasetDict({
-    'labels1': labeled,
-    'labels2': labeled,
-    'labels3': labeled,
-    'unlabels': unlabeled_co
-})
+        mock_ex_unl.assert_called()
 
-encoded_tri, tokenizer_tri = encode(correct_ds_for_tri)
+        self.assertFalse(isinstance(trainer2.lr_scheduler, MultiplicativeLR))
 
+    @patch('ssfinetuning.models.CoTrain', autospec=True)
+    def test_for_cotrain(self, mock_CT):
 
-class TestTrainerForTriTraining(unittest.TestCase):
+        mock_CT_obj = mock_CT.to()
 
-    def test_for_constructor(self):
+        mock_CT_obj.pretrained_model.forward.__signature__ = self.sig
 
-        trainer_1 = TrainerForTriTraining(
-            model=TriTrain(), dataset=correct_ds_for_tri)
+        # setting epoch_per_cotrain to 2
+        trainer = TrainerForCoTraining(
+            model=mock_CT_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            epoch_per_cotrain=2
+        )
 
-        with self.assertRaises(KeyError):
-            TrainerForTriTraining(
-                model=TriTrain(),
-                dataset=wrong_key_ds_for_tri)
+        trainer.pre_train_init(num_training_steps=4)
 
-    def test_for_train(self):
+        trainer.cotrain(trainer.dataset_model1, trainer.dataset_model2)
 
-        trainer = TrainerForTriTraining(
-            model=TriTrain(),
-            args=args_ta,
-            tokenizer=tokenizer_tri,
-            dataset=encoded_tri)
+        self.assertTrue(mock_CT_obj.cotrain_forward.call_count, 4)
 
-        with patch.object(TrainerForTriTraining, 'tri_train', return_value=None) as mock_tritrain:
-            trainer.train()
+        with patch.object(TrainerForCoTraining, 'get_dataloader') as mock_dl:
+            trainer.cotrain(trainer.dataset_model1, trainer.dataset_model2)
 
-        mock_tritrain.assert_called()
+        self.assertTrue(mock_dl.call_count, 2)
 
-        with patch.object(TrainerForTriTraining, 'exchange_unlabeled_data', return_value=bool) as mock_exchange_ud:
-            trainer.train()
+        with patch.object(TrainerForCoTraining, 'equate_lengths') as mock_eql:
+            trainer.cotrain(trainer.dataset_model1, trainer.dataset_model2)
 
-        mock_exchange_ud.assert_called()
+        mock_eql.assert_called()
 
+        # setting epoch_per_cotrain to 4
+        trainer2 = TrainerForCoTraining(
+            model=mock_CT_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            epoch_per_cotrain=4
+        )
 
-correct_ds_for_ns = DatasetDict({
-    'labeled': labeled,
-    'unlabeled': unlabeled_co
+        trainer2.pre_train_init(num_training_steps=8)
 
-})
+        trainer2.cotrain(trainer2.dataset_model1, trainer2.dataset_model2)
 
-wrong_key_ds_for_ns = DatasetDict({
-    'label1': labeled,
-    'unlabels': unlabeled_co
-})
+        self.assertTrue(mock_CT_obj.cotrain_forward.call_count, 8 + 4)
 
-encoded_ns, tokenizer_ns = encode(correct_ds_for_ns)
+    @patch('ssfinetuning.models.CoTrain', autospec=True)
+    def test_for_exchange_unlabeled_data(self, mock_CT):
 
+        mock_CT_obj = mock_CT.to()
 
-class TestTrainerForNoisyStudent(unittest.TestCase):
+        mock_CT_obj.pretrained_model.forward.__signature__ = self.sig
 
-    def test_for_constructor(self):
+        # setting p_threshold to 0.65 and
+        # exchange_threshold=0
+        trainer = TrainerForCoTraining(
+            model=mock_CT_obj,
+            dataset=self.encoded_dataset,
+            args=self.args_ta,
+            tokenizer=self.tokenizer,
+            p_threshold=0.65,
+            exchange_threshold=0
+        )
 
-        trainer_1 = TrainerForNoisyStudent(
-            model=NoisyStudent(), dataset=correct_ds_for_ns)
+        trainer.pre_train_init(num_training_steps=8)
+        logits_1 = torch.tensor([[0.70, 0.30], [0.5, 0.5]])
+        logits_2 = torch.tensor([[0.40, 0.60], [0.5, 0.5]])
 
-        with self.assertRaises(KeyError):
-            TrainerForNoisyStudent(
-                model=NoisyStudent(),
-                dataset=wrong_key_ds_for_ns)
+        # simulating the exchange using mock on CoTrain.simple_forward()
+        # first step is exchange, second step is not as logits are same in step 1
+        # and so on.
+        mock_CT_obj.simple_forward.side_effect = [logits_1, logits_2,
+                                                  logits_1, logits_2,
+                                                  logits_2, logits_1]
 
-    def test_for_train(self):
+        self.assertTrue(trainer.exchange_unlabeled_data())
 
-        trainer = TrainerForNoisyStudent(
-            model=NoisyStudent(),
-            args=args_ta,
-            tokenizer=tokenizer_ns,
-            dataset=encoded_ns)
+        self.assertFalse(trainer.exchange_unlabeled_data())
 
-        with patch.object(TrainerForNoisyStudent, 'train_and_reset', return_value=None) as mock_train_and_reset:
-            trainer.train()
-
-        mock_train_and_reset.assert_called()
-
-        with patch.object(TrainerForNoisyStudent, 'exchange_models', return_value=bool) as mock_exchange_md:
-            trainer.train()
-
-        mock_exchange_md.assert_called()
+        self.assertTrue(trainer.exchange_unlabeled_data())

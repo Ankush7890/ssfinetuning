@@ -259,7 +259,7 @@ class SimpleDataset(Dataset):
                 mask_change[exists] = False
 
                 changed_to_false = torch.logical_and(
-                    self.batch_masks[batch_index], mask is False)
+                    self.batch_masks[batch_index], mask == False)
 
                 self.batch_masks[batch_index][changed_to_false] = False
                 mask_change[changed_to_false] = True

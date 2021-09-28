@@ -141,8 +141,8 @@ class UWScheduler:
         self.trainer = trainer
         self.lr_scheduler = lr_scheduler
         self.local_step = 0
-        self.max_w = max_w
         self.unsup_start_epochs = unsup_start_epochs
+        self.max_w = max_w
         self.update_weights_steps = update_weights_steps
         self.w_ramprate = w_ramprate
         self.steps_in_epoch = len(
@@ -162,14 +162,12 @@ class UWScheduler:
         """
 
         self.lr_scheduler.step()
-
         if self.trainer.state.epoch > self.unsup_start_epochs\
                 and self.is_true(self.update_weights_steps):
 
-            self.trainer.model.unsup_weight = min(self.max_w,
-                                                  self.w_ramprate
-                                                  * self.local_step)
-            self.local_step += 1
+            self.trainer.model.unsup_weight =\
+                min(self.max_w, self.w_ramprate
+                    * (self.local_step - self.unsup_start_epochs))
 
         if self.trainer.model.type_ == "TemporalEnsembleModel"\
                 and self.is_true(self.steps_in_epoch):
@@ -180,6 +178,8 @@ class UWScheduler:
         if self.trainer.model.type_ == "MeanTeacher" and self.is_true(
                 self.update_teacher_steps):
             self.trainer.model.update_teacher_variables()
+
+        self.local_step += 1
 
     def is_true(self, value):
         """
@@ -273,6 +273,7 @@ class TrainerWithUWScheduler(RemoveUnusedColumnMixing, Trainer):
         for ind in range(len(labels) // batch_size):
 
             min_batch = labels[ind * batch_size: (ind + 1) * batch_size]
+
             if not (all(min_batch >= 0) or all(min_batch < 0)):
                 raise RuntimeError(
                     'Mixing of labeled and unlabeled examples is not allowed.')
@@ -618,9 +619,8 @@ class TrainerForCoTraining(BaseForMMTrainer):
         exchange = True
         count_passes = 0
         while exchange is True and count_passes < self.max_passes:
-            ul_dataloader = self.get_dataloader(self.dataset_unlabeled)
             with torch.no_grad():
-                exchange = self.exchange_unlabeled_data(ul_dataloader)
+                exchange = self.exchange_unlabeled_data()
 
             if exchange:
                 self.cotrain(self.dataset_model1, self.dataset_model2)
@@ -681,7 +681,7 @@ class TrainerForCoTraining(BaseForMMTrainer):
 
         self.global_epoch += self.epoch_per_cotrain
 
-    def exchange_unlabeled_data(self, ul_dataloader):
+    def exchange_unlabeled_data(self):
         """
         Method to exchange the unlabeled dataset between models. Examples on
         which model1 is confident on(above p_threshold) are given to model2
@@ -703,7 +703,7 @@ class TrainerForCoTraining(BaseForMMTrainer):
         self.dataset_model1.reset()
         self.dataset_model2.reset()
         added = 0
-
+        ul_dataloader = self.get_dataloader(self.dataset_unlabeled)
         for batch_index, inputs in enumerate(ul_dataloader):
 
             inputs = self._prepare_inputs(inputs)
