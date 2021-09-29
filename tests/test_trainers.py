@@ -14,7 +14,6 @@ from .tiny_training_datasets import (
     get_correct_dataset_TUWS,
     get_wrong_dataset_TUWS,
     get_dataset_cotrain)
-
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -364,6 +363,7 @@ class TestTrainerCoTrain(unittest.TestCase):
         )
 
         trainer.pre_train_init(num_training_steps=8)
+        # assuming 2 classes
         logits_1 = torch.tensor([[0.70, 0.30], [0.5, 0.5]])
         logits_2 = torch.tensor([[0.40, 0.60], [0.5, 0.5]])
 
