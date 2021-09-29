@@ -196,6 +196,7 @@ class PiModel(BaseModelClass):
         transformers.modeling_outputs.SequenceClassifierOutput object with the
         information of logits and loss function.
         """
+
         labels = kwargs.pop('labels')
 
         z1_logits = self.simple_forward(**kwargs).logits
