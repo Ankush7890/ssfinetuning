@@ -27,12 +27,12 @@ def encode(dataset, model_name='albert-base-v2', text_column_name='sentence'):
 
     Args:
 
-    dataset (:obj:`~datasets.DatasetDict` ): Dataset dictionary containing
-    labeled and unlabeled data.
+    dataset (:obj:`~datasets.DatasetDict` ): Dataset dictionary containing labeled
+    and unlabeled data.
 
-    model_name (:obj:`str` or :obj:`os.PathLike`):
-    "pretrained_model_name_or_path" in ~transformers.PreTrainedModel, please
-    refer to its documentation for further information.
+    model_name (:obj:`str` or :obj:`os.PathLike`): "pretrained_model_name_or_path"
+    in ~transformers.PreTrainedModel, please refer to its documentation for further
+    information.
 
     (i) In this case of a string, the `model id` of a pretrained model
     hosted inside a model repo on huggingface.co.
@@ -90,24 +90,17 @@ class DefaultArgs:
         Function for setting the default arguments if these keywords are not
         provided in kwargs of train_with_ssl. Updates the kwargs to be used
         transformers.Trainer.
-
         Args:
-
         dataset (:obj:`~datasets.DatasetDict` ): Dataset dictionary containing
         labeled and unlabelled data.
-
         model_name (:obj:`str` or :obj:`os.PathLike`):
         "pretrained_model_name_or_path" in ~transformers.PreTrainedModel,
         please refer to its documentation for further information.
-
         (i) In this case of a string, the `model id` of a pretrained model
         hosted inside a model repo on huggingface.co.
-
         (ii) It could also be address of saved pretrained model.
-
         kwargs (:obj:`dict`): keyword arguments to be used by
         transformers.Trainer.
-
         """
 
         kwargs_trn = extract_keys(Trainer, kwargs)
@@ -117,12 +110,11 @@ class DefaultArgs:
 
         if 'tokenizer' not in kwargs_trn.keys():
             text_column_name = kwargs.pop('text_column_name', 'sentence')
-            encoded_dataset, tokenizer = encode(
-                dataset, model_name, text_column_name)
+            encoded_dataset, tokenizer = encode(dataset, model_name, text_column_name)
             kwargs_trn['tokenizer'] = tokenizer
+
         else:
-            warnings.warn('tokenizer found. If using tokenizer, please use the'
-                          'encoded dataset. Like done using'
+            warnings.warn('tokenizer found. If using tokenizer, please use the encoded dataset. Like done using'
                           '~set_default_args.encode()')
 
         if 'args_ta_sup' in kwargs.keys():
@@ -142,16 +134,14 @@ class DefaultArgs:
 
     def get_default_ta_sup(self, logging_dir=''):
         """
-        Return the TrainingArguments with the logging_dir setup for supervised
-        model.
+        Return the TrainingArguments with the logging_dir setup for supervised model.
         """
         self.kwargs_args_sup['logging_dir'] = logging_dir
         return TrainingArguments(**self.kwargs_args_sup)
 
     def get_default_ta(self, logging_dir=''):
         """
-        Return the TrainingArguments with the logging_dir setup for
-        semisupervised model.
+        Return the TrainingArguments with the logging_dir setup for semisupervised model.
         """
         self.kwargs_args['logging_dir'] = logging_dir
         return TrainingArguments(**self.kwargs_args)

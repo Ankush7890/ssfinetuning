@@ -16,26 +16,22 @@ def add_end_args(from_fn):
     return docstring_decorator
 
 
-def sort_and_find(data, cols_unique_vals, x_axis_col,
-                  y_axis_col, select_best, criteria):
+def sort_and_find(data, cols_unique_vals, x_axis_col, y_axis_col, select_best, criteria):
     """
-    Finds a sorted list of "y_axis_col" in "data" based on the "criteria".
-    First, this function generates all the combinations of unique cols values
-    and then it creates a list of values for all the combinations. At the end,
-    it sorts this list based on the criteria.
+    Finds a sorted list of "y_axis_col" in "data" based on the "criteria". First, this
+    function generates all the combinations of unique cols values and then it creates a
+    list of values for all the combinations. At the end, it sorts this list based on the criteria.
 
     Args:
 
     data (:obj:`pd.DataFrame` ): The data to be sorted.
 
-    cols_unique_vals (:obj:`list`): A list of columns of important
-    hyperparameters with their unique values.
+    cols_unique_vals (:obj:`list`): A list of columns of important hyperparameters
+    with their unique values.
 
-    x_axis_col (:obj:`str`): Column name with the values to be plotted on the
-    x axis.
+    x_axis_col (:obj:`str`): Column name with the values to be plotted on the x axis.
 
-    y_axis_col (:obj:`str`): Column name with the values to be plotted on the
-    y axis.
+    y_axis_col (:obj:`str`): Column name with the values to be plotted on the y axis.
 
     criteria (:obj:`str`): criteria to sort the list. There are three choices,
     (i) max, (ii) min, and (iii)mean.
@@ -64,22 +60,13 @@ def sort_and_find(data, cols_unique_vals, x_axis_col,
     if select_best:
 
         if(criteria == 'mean'):
-            sorted_list = sorted(
-                value_for_combi,
-                key=lambda x: x[3],
-                reverse=True)
+            sorted_list = sorted(value_for_combi, key=lambda x: x[3], reverse=True)
 
         elif(criteria == 'max'):
-            sorted_list = sorted(
-                value_for_combi,
-                key=lambda x: x[4],
-                reverse=True)
+            sorted_list = sorted(value_for_combi, key=lambda x: x[4], reverse=True)
 
         elif(criteria == 'min'):
-            sorted_list = sorted(
-                value_for_combi,
-                key=lambda x: x[5],
-                reverse=True)
+            sorted_list = sorted(value_for_combi, key=lambda x: x[5], reverse=True)
 
     return sorted_list
 
@@ -90,8 +77,7 @@ def set_default_vals(num_graphs):
 
     Args:
 
-    num_graphs (:obj:`int` ): num of num_graphs to be plotted with maximum
-    value of 4.
+    num_graphs (:obj:`int` ): num of num_graphs to be plotted with maximum value of 4.
 
     """
 
@@ -139,41 +125,28 @@ def get_default_legend_pos(num_graphs, axes_index=None):
 
     Args:
 
-    num_graphs (:obj:`int` ): num of num_graphs to be plotted with maximum
-    value of 4.
+    num_graphs (:obj:`int` ): num of num_graphs to be plotted with maximum value of 4.
 
-    axes_index (:obj:`int` , `optional`, defaults to None ): In the case of
-    multiple, setting changed depending on index of axes.
+    axes_index (:obj:`int` , `optional`, defaults to None ): In the case of multiple,
+    setting changed depending on index of axes.
 
     """
 
     if num_graphs == 1:
-        kwargs = {'bbox_to_anchor': (-0.4, 1.00),
-                  'loc': 2, 'borderaxespad': 0.}
+        kwargs = {'bbox_to_anchor': (-0.4, 1.00), 'loc': 2, 'borderaxespad': 0.}
     elif num_graphs == 2:
         x_displacement = -1.0 if axes_index % 2 == 0 else 1.0
-        kwargs = {
-            'bbox_to_anchor': (
-                x_displacement,
-                1.00),
-            'loc': 2,
-            'borderaxespad': 0.}
+        kwargs = {'bbox_to_anchor': (x_displacement, 1.00), 'loc': 2, 'borderaxespad': 0.}
     else:
         x_displacement = -0.7 if axes_index % 2 == 0 else 1.0
-        kwargs = {
-            'bbox_to_anchor': (
-                x_displacement,
-                1.00),
-            'loc': 2,
-            'borderaxespad': 0.}
+        kwargs = {'bbox_to_anchor': (x_displacement, 1.00), 'loc': 2, 'borderaxespad': 0.}
 
     return kwargs
 
 
-def plot_in(axes, axes_index=0, totplots=1, data=None, data_to_compare=None,
-            x_axis_col='epoch', y_axis_col="eval_mc", select_best=5,
-            criteria='max', cols_to_find=["w_ramprate"], dis_col='l_fr',
-            dis_val=False, data_to_compare_lb='sup_stats'):
+def plot_in(axes, axes_index=0, totplots=1, data=None, data_to_compare=None, x_axis_col='epoch',
+            y_axis_col="eval_mc", select_best=5, criteria='max', cols_to_find=["w_ramprate"],
+            dis_col='l_fr', dis_val=False, data_to_compare_lb='sup_stats'):
     """
     Main plotting function.
 
@@ -200,50 +173,37 @@ def plot_in(axes, axes_index=0, totplots=1, data=None, data_to_compare=None,
     select_best (:obj:`int`, `optional`, defaults to 5 ): The number of plots
     to be made based out of the sorted list.
 
-    criteria (:obj:`str`, `optional`, defaults to 'max' ): Criteria to sort
-    the list. There are three choices, (i) max, (ii) min, and (iii)mean.
+    criteria (:obj:`str`, `optional`, defaults to 'max' ): Criteria to sort the
+    list. There are three choices, (i) max, (ii) min, and (iii)mean.
 
-    cols_to_find (:obj:`list`, `optional`, defaults to ['w_ramprate'] ): The
-    list of column names which will analysed to find the best of them based
-    the sorting criteria.
+    cols_to_find (:obj:`list`, `optional`, defaults to ['w_ramprate'] ): The list of
+    column names which will analysed to find the best of them based the sorting criteria.
 
-    dis_col (:obj:`str`, `optional`, defaults to 'l_fr' ): The dicriminatory
-    column name. This would be column name along which the graphs would be
-    divided along the subplots.
+    dis_col (:obj:`str`, `optional`, defaults to 'l_fr' ): The dicriminatory column name.
+    This would be column name along which the graphs would be divided along the subplots.
 
-    dis_val (:obj:`int` or 'float', `optional`, defaults to 'None'): This is
-    only valid if the 'dis_col' is not None. This is used when a certain
-    unique value of discriminatory column is plotted.
+    dis_val (:obj:`int` or 'float', `optional`, defaults to 'None' ): This is only valid
+    if the 'dis_col' is not None. This is used when a certain unique value of discriminatory
+    column is plotted.
 
-    data_to_compare_lb (:obj:`str`, `optional`, defaults to 'sup_stats'):
-    Label name for the data_to_compare plot.
+    data_to_compare_lb (:obj:`str`, `optional`, defaults to 'sup_stats' ): Label name for
+    the data_to_compare plot.
 
     """
 
     cols_unique_vals = {v: data[v].unique() for v in cols_to_find}
-    sorted_list = sort_and_find(
-        data,
-        cols_unique_vals,
-        x_axis_col,
-        y_axis_col,
-        select_best,
-        criteria)
+    sorted_list = sort_and_find(data, cols_unique_vals, x_axis_col, y_axis_col, select_best, criteria)
 
     plots_range = min(select_best, len(sorted_list))
 
     for i in range(plots_range):
-        label_name = '\n'.join([str(k) + '=' + str(v)
-                               for k, v in sorted_list[i][0].items()])
+        label_name = '\n'.join([str(k) + '=' + str(v) for k, v in sorted_list[i][0].items()])
         axes.plot(sorted_list[i][1], sorted_list[i][2], label=label_name)
 
     if data_to_compare is not None:
         if dis_val:
             data_2c_dis = data_to_compare[data_to_compare[dis_col] == dis_val]
-            axes.plot(
-                data_2c_dis[x_axis_col],
-                data_2c_dis[y_axis_col],
-                label=data_to_compare_lb,
-                linestyle='--')
+            axes.plot(data_2c_dis[x_axis_col], data_2c_dis[y_axis_col], label=data_to_compare_lb, linestyle='--')
         else:
             axes.plot(
                 data_to_compare[x_axis_col],
@@ -278,8 +238,7 @@ def plot_with_discriminator(dis_col, save_png, data=None, *args, **kwargs):
     value of save_png is not None then it would save the image with name of
     string value set in save_png.
 
-    kwargs: remaining dictionary of keyword arguments from the plot_in
-    function.
+    kwargs: remaining dictionary of keyword arguments from the plot_in function.
 
     """
     totplots = len(data[dis_col].unique())
@@ -290,12 +249,10 @@ def plot_with_discriminator(dis_col, save_png, data=None, *args, **kwargs):
 
         data_dis = data[data[dis_col] == dis_val]
 
-        plot_in(axes_unrolled[dis_index], axes_index=dis_index,
-                totplots=totplots, data=data_dis, dis_val=dis_val,
-                *args, **kwargs)
+        plot_in(axes_unrolled[dis_index], axes_index=dis_index, totplots=totplots,
+                data=data_dis, dis_val=dis_val, *args, **kwargs)
 
-        axes_unrolled[dis_index].legend(
-            **get_default_legend_pos(len(data[dis_col].unique()), dis_index))
+        axes_unrolled[dis_index].legend(**get_default_legend_pos(len(data[dis_col].unique()), dis_index))
 
     if save_png:
         plt.savefig(save_png, bbox_inches='tight')
@@ -308,12 +265,11 @@ def simple_plot(save_png, *args, **kwargs):
 
     Args:
 
-    save_png (:obj:`str` ): Whether to save png of results or not. If the
-    value of save_png is not None then it would save the image with name
-    of string value set in save_png.
+    save_png (:obj:`str` ): Whether to save png of results or not. If the value of
+    save_png is not None then it would save the image with name of string value set
+    in save_png.
 
-    kwargs: remaining dictionary of keyword arguments from the
-    plot_in function.
+    kwargs: remaining dictionary of keyword arguments from the plot_in function.
 
     """
 
@@ -330,22 +286,19 @@ def simple_plot(save_png, *args, **kwargs):
 @add_end_args(plot_in)
 def sort_and_plot(dis_col=None, save_png='results.png', *args, **kwargs):
     """
-    Function to sort the results and plot them depending if discriminatory
-    is specified or not.
+    Function to sort the results and plot them depending if discriminatory is specified or not.
 
     Args:
 
     dis_col (:obj:`str`, `optional`, defaults to None ): The dicriminatory
     column name. This would be column name along which the graphs would be
-    divided along the subplots. If it is None, it will simply plot a sorted
-    values.
+    divided along the subplots. If it is None, it will simply plot a sorted values.
 
-    save_png (:obj:`str` ): Whether to save png of results or not. If the
-    value of save_png is not None then it would save the image with name
-    of string value set in save_png.
+    save_png (:obj:`str` ): Whether to save png of results or not. If the value of
+    save_png is not None then it would save the image with name of string value set
+    in save_png.
 
-    kwargs: remaining dictionary of keyword arguments for the plot_in
-    function.
+    kwargs: remaining dictionary of keyword arguments for the plot_in function.
 
     """
 

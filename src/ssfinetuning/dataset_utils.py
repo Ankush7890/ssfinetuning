@@ -11,8 +11,7 @@ import inspect
 
 def extract_keys(function, kwargs, remove_from_orignal=True):
     """
-    Function which extract the keys of "function" from "kwargs" by inspecting
-    the signature of "function".
+    Function which extract the keys of "function" from "kwargs" by inspecting the signature of "function".
 
     """
 
@@ -29,8 +28,8 @@ def extract_keys(function, kwargs, remove_from_orignal=True):
 
 def match_with_batchsize(lim, batchsize):
     """
-    Function used by modify_datasets below to match return the integer closest
-    to lim which is multiple of batchsize, i.e., lim%batchsize=0.
+    Function used by modify_datasets below to match return the integer closest to lim
+    which is multiple of batchsize, i.e., lim%batchsize=0.
 
     """
 
@@ -40,8 +39,7 @@ def match_with_batchsize(lim, batchsize):
         return lim - lim % batchsize
 
 
-def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
-                    labeled1_frac=0.33, train_key="train",
+def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain', labeled1_frac=0.33, train_key="train",
                     label_column='label', unlabeled_labels=-1, batchsize=16):
     """
     Function to modify pyarrow based datasets (huggingface dataset) for testing
@@ -49,27 +47,25 @@ def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
 
     Args:
 
-    dataset (:obj:`dataset.DatasetDict`): Dictionary containing training and
-    validation datasets.
+    dataset (:obj:`dataset.DatasetDict`): Dictionary containing training and validation datasets.
 
-    labeled_frac (:obj:`float`): Fraction of training dataset to be kept as
-    labeled dataset and rest will be divided as unlabeled dataset.
+    labeled_frac (:obj:`float`): Fraction of training dataset to be kept as labeled dataset and
+    rest will be divided as unlabeled dataset.
 
     model_type (:obj:`str`): Semi supervised model type.
 
-    labeled1_frac (:obj:`float`): In the case of CoTraining and TriTraining
-    model_type, this is the fraction given to the first two models
-    (m1 and m2) after being divided by labeled_fr. Rest is given to model 3.
-    For example, labeled1_frac=0.33, m1 and m2 gets 0.33 and m3 gets
-    (1-2*0.33).
+    labeled1_frac (:obj:`float`): In the case of CoTraining and TriTraining model_type, this
+    is the fraction given to the first two models (m1 and m2) after being divided by labeled_fr.
+    Rest is given to model 3. For example, labeled1_frac=0.33, m1 and m2 gets 0.33
+    and m3 gets (1-2*0.33)
 
     train_key (:obj:`str`):  Key value of where training data is accessed.
 
     label_column (:obj:`str`):  Key value of where columns for labels.
 
-    unlabeled_labels (:obj:`int`):  Value to be assigned to the unlabeled
-    dataset labels, required for Pi, TemporalEnsemble, and MeanTeacher as they
-    need to know which ones are unlabeled examples.
+    unlabeled_labels (:obj:`int`):  Value to be assigned to the unlabeled dataset labels,
+    required for Pi, TemporalEnsemble, and MeanTeacher as they need to know which ones
+    are unlabeled examples.
 
     batchsize (:obj:`int`):  Batch size used during training.
 
@@ -78,29 +74,20 @@ def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
     """
 
     dataset_train = dataset[train_key].shuffle()
-
     num_rows = dataset_train.num_rows
 
     lab_lim = match_with_batchsize(int(labeled_fr * num_rows), batchsize)
-
-    unlab_start = num_rows - \
-        match_with_batchsize(num_rows - lab_lim, batchsize)
-
+    unlab_start = num_rows - match_with_batchsize(num_rows - lab_lim, batchsize)
     dataset['labeled'] = dataset_train.select(np.arange(0, lab_lim))
+    dataset['unlabeled'] = dataset_train.select(np.arange(unlab_start, num_rows))
 
-    dataset['unlabeled'] = dataset_train.select(
-        np.arange(unlab_start, num_rows))
+    if model_type == 'PiModel' or model_type == 'TemporalEnsemble' or model_type == 'MeanTeacher':
 
-    if (model_type == 'PiModel' or model_type == 'TemporalEnsemble' or
-            model_type == 'MeanTeacher'):
-
-        dataset['unlabeled'] = dataset['unlabeled'].map(
-            lambda x: {label_column: unlabeled_labels})
+        dataset['unlabeled'] = dataset['unlabeled'].map(lambda x: {label_column: unlabeled_labels})
 
         del dataset[train_key]
 
-        dataset[train_key] = concatenate_datasets(
-            [dataset['labeled'], dataset['unlabeled']])
+        dataset[train_key] = concatenate_datasets([dataset['labeled'], dataset['unlabeled']])
 
         del dataset['unlabeled']
         gc.collect()
@@ -108,23 +95,16 @@ def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
 
     elif model_type == 'CoTrain':
 
-        dataset['labeled1'] = dataset_train.select(
-            np.arange(0, int(labeled1_frac * lab_lim)))
-        dataset['labeled2'] = dataset_train.select(
-            np.arange(int(labeled1_frac * lab_lim), lab_lim))
+        dataset['labeled1'] = dataset_train.select(np.arange(0, int(labeled1_frac * lab_lim)))
+        dataset['labeled2'] = dataset_train.select(np.arange(int(labeled1_frac * lab_lim), lab_lim))
         dataset['unlabeled'].remove_columns_(label_column)
 
     elif model_type == 'TriTrain':
 
-        dataset['labeled1'] = dataset_train.select(
-            np.arange(0, int(labeled1_frac * lab_lim)))
-
+        dataset['labeled1'] = dataset_train.select(np.arange(0, int(labeled1_frac * lab_lim)))
         dataset['labeled2'] = dataset_train.select(
-            np.arange(int(labeled1_frac * lab_lim),
-                      int(2 * labeled1_frac * lab_lim)))
-
-        dataset['labeled3'] = dataset_train.select(
-            np.arange(int(2 * labeled1_frac * lab_lim), lab_lim))
+            np.arange(int(labeled1_frac * lab_lim), int(2 * labeled1_frac * lab_lim)))
+        dataset['labeled3'] = dataset_train.select(np.arange(int(2 * labeled1_frac * lab_lim), lab_lim))
         dataset['unlabeled'].remove_columns_(label_column)
 
     else:
@@ -137,20 +117,18 @@ def modify_datasets(dataset, labeled_fr=0.5, model_type='TriTrain',
     return DatasetDict(dataset)
 
 
-def dic_to_pandas(history, loss_key='eval_loss',
-                  accuracy_measure='eval_matthews_correlation'):
+def dic_to_pandas(history, loss_key='eval_loss', accuracy_measure='eval_matthews_correlation'):
     """
-    Function to convert the list of dictionary to pandas DataFrame which is
-    easier for the plotting function in plotting utils to handle.
+    Function to convert the list of dictionary to pandas DataFrame which is easier for the plotting
+    function in plotting utils to handle
 
     Args:
 
     history (:obj:`list`): A list of history dictionaries. It is basically
     transformer.TrainerState() at different hyperparameters analysed.
 
-    loss_key (:obj:`str`): The key to look for. In the case of analysis of
-    evaluation history, the key is 'eval_loss' and for training history the
-    key is 'train_loss'
+    loss_key (:obj:`str`): The key to look for. In the case of analysis of evaluation history,
+    the key is 'eval_loss'. In the case of analysis of training history the key is 'train_loss'
 
     accuracy_measure (:obj:`str`): Name of the metric used during evaluation.
 
@@ -198,11 +176,10 @@ class SimpleDataset(Dataset):
 
      -**original_len**: Length of the dataset at the instantiation.
 
-     -**to_append_dic**: The dictionary used in appending unlabeled examples
-       in dataset.
+     -**to_append_dic**: The dictionary used in appending unlabeled examples in dataset.
 
-     -**batch_masks**: This dictionary keeps track of the unlabeled examples
-     which are removed and inserted in the dataset during appending procedure.
+     -**batch_masks**: This dictionary keeps track of the unlabeled examples which are
+     removed and inserted in the dataset during appending procedure.
 
     """
 
@@ -226,21 +203,18 @@ class SimpleDataset(Dataset):
 
         ul_data (:obj:`torch.FloatTensor`): Unlabeled data batch.
 
-        mask (:obj:`torch.BoolTensor`): Mask of the data object which are
-        going to accepted from the batch. This object also helps in keeping
-        track of the examples which are inserted.
+        mask (:obj:`torch.BoolTensor`): Mask of the data object which are going to accepted
+        from the batch. This object also helps in keeping track of the examples which are inserted.
 
-        batch_index (:obj: ´int´): Index of the batch of unlabeled data. To be
-        used by batch_masks dictionary.
+        batch_index (:obj: ´int´): Index of the batch of unlabeled data. To be used by batch_masks
+        dictionary.
 
         Return:
-        mask_change.sum() (:obj: ´int´): Sum of any insertion and deletion of
-        examples in the dataset.
+        mask_change.sum() (:obj: ´int´): Sum of any insertion and deletion of examples in the dataset.
 
         """
 
-        mask = torch.ones(ul_data['input_ids'].size()[
-                          0]).bool() if mask is None else mask
+        mask = torch.ones(ul_data['input_ids'].size()[0]).bool() if mask is None else mask
 
         for k in ul_data:
             to_add = ul_data[k][mask].tolist()
@@ -258,14 +232,11 @@ class SimpleDataset(Dataset):
                 exists = torch.logical_and(self.batch_masks[batch_index], mask)
                 mask_change[exists] = False
 
-                changed_to_false = torch.logical_and(
-                    self.batch_masks[batch_index], mask == False)
-
+                changed_to_false = torch.logical_and(self.batch_masks[batch_index], mask == False)
                 self.batch_masks[batch_index][changed_to_false] = False
                 mask_change[changed_to_false] = True
 
-                self.batch_masks[batch_index] = torch.logical_or(
-                    self.batch_masks[batch_index], mask)
+                self.batch_masks[batch_index] = torch.logical_or(self.batch_masks[batch_index], mask)
 
             return mask_change.sum()
 
@@ -302,8 +273,7 @@ class SimpleDataset(Dataset):
 
     def extend_length(self, length):
         """
-        Extends the length of the dataset by randomly repeating length amount
-        of rows.
+        Extends the length of the dataset by randomly repeating length amount of rows.
         """
 
         len_ = len(self)
@@ -316,6 +286,4 @@ class SimpleDataset(Dataset):
 
         additional_data = self.dataset.select(rand_indices)
         self.dataset = concatenate_datasets([self.dataset, additional_data])
-        self.dataset.set_format(
-            type=self.dataset.format["type"],
-            columns=columns)
+        self.dataset.set_format(type=self.dataset.format["type"], columns=columns)
