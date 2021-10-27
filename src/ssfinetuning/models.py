@@ -281,7 +281,7 @@ class TemporalEnsembleModel(BaseModelClass):
         Method for updating the memory logits with the exponential average.
 
         Args:
-        t (:obj:`int`): epoch value of bias normalization.
+        t (:obj:`int`): epoch value for bias normalization.
 
         """
 
@@ -298,7 +298,7 @@ class TemporalEnsembleModel(BaseModelClass):
             self.memory_logits[ind] = (self.alpha * self.memory_logits[ind] +
                                        (1 - self.alpha) * self.logits_batchwise[ind])
 
-            self.memory_logits[ind] /= (1 - self.alpha**(t))
+            self.memory_logits[ind] /= (1 - self.alpha**(t) + 1e-8)
 
         self.mini_batch_num = 0
         self.logits_batchwise[:] = []

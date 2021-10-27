@@ -254,7 +254,7 @@ class TestTrainerCoTrain(unittest.TestCase):
                 args=self.args_ta,
                 dataset=self.dataset_wrong_key)
 
-    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining,'exchange_unlabeled_data')
+    @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining, 'exchange_unlabeled_data')
     @patch.object(ssfinetuning.trainer_util.TrainerForCoTraining, 'cotrain')
     @patch('ssfinetuning.models.CoTrain', autospec=True)
     def test_for_train(self, mock_CT, mock_cotrain, mock_ex_unl):
